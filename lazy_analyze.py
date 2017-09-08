@@ -77,12 +77,10 @@ def analyze(node, fn):
 
 
 def main():
-    total = lazy = eager = 0
+    lazy = set()
+    eager = set()
     for fn in sys.argv[1:]:
-        if 'test_' in fn:
-            continue
         with open(fn) as fp:
-            total += 1
             try:
                 buf = fp.read()
             except UnicodeDecodeError:
@@ -93,14 +91,11 @@ def main():
                 continue
             a = analyze(node, fn)
             if a.is_lazy:
-                lazy += 1
-                ## print('%s lazy = %s, funcs = %d classes = %d' % (
-                ##     fn, a.is_lazy, a.lazy_funcs, a.lazy_classes))
-                ## for name in a.imports:
-                ##     print('  import', name)
+                lazy.add(fn)
             else:
-                eager += 1
-    print(f'{lazy / total * 100:.1f}% - total: {total}')
+                eager.add(fn)
+    total = len(lazy) + len(eager)
+    print(f'{len(lazy) / total * 100:.1f}% - total: {total}')
 
 
 if __name__ == '__main__':
