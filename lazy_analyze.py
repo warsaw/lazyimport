@@ -1,6 +1,7 @@
-import sys
 import ast
 import importlib.util
+import sys
+import tokenize
 
 
 def safe_assign(value):
@@ -80,7 +81,7 @@ def main():
     lazy = set()
     eager = set()
     for fn in sys.argv[1:]:
-        with open(fn) as fp:
+        with tokenize.open(fn) as fp:
             try:
                 buf = fp.read()
             except UnicodeDecodeError:
