@@ -19,7 +19,8 @@ class Transformer:
 
     def eager(self, stmt):
         self.is_lazy = False
-        #print(f'{self.fn}:{stmt.lineno}: non-lazy {stmt.__class__.__name__}')
+        print(f'{self.fn}:{stmt.lineno}: non-lazy {stmt.__class__.__name__}')
+        return self.is_lazy
 
     def analyze(self, node):
         for stmt in node.body:
@@ -36,12 +37,10 @@ class Transformer:
                             target.id == '__lazy__'):
                         self.force_lazy = True
                     else:
-                        self.eager(stmt)
-                        return
+                        return self.eager(stmt)
                 else:
                     if not safe_assign(stmt.value):
-                        print('assign', stmt.value)
-                        self.is_lazy = False
+                        return self.eager(stmt)
             elif isinstance(stmt, ast.FunctionDef):
                 self.lazy_funcs += 1
             elif isinstance(stmt, ast.ClassDef):
@@ -51,12 +50,10 @@ class Transformer:
                 if isinstance(stmt.value, ast.Str):
                     pass
                 else:
-                    self.eager(stmt)
-                    return
+                    return self.eager(stmt)
             else:
-                self.eager(stmt)
-                return
-        return
+                return self.eager(stmt)
+        return self.is_lazy
 
 
 def parse(buf, filename='<string>'):
