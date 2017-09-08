@@ -93,6 +93,9 @@ def main():
             else:
                 eager.add(fn)
     total = len(lazy) + len(eager)
+    if not total:
+        print('warning: no Python modules parsed.')
+        return
     print(f'{len(lazy) / total * 100:.1f}% - total: {total}')
     print('Eager modules:')
     for fn in sorted(eager):
