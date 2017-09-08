@@ -19,7 +19,7 @@ class Transformer:
 
     def eager(self, stmt):
         self.is_lazy = False
-        print(f'{self.fn}:{stmt.lineno}: non-lazy {stmt.__class__.__name__}')
+        #print(f'{self.fn}:{stmt.lineno}: non-lazy {stmt.__class__.__name__}')
 
     def analyze(self, node):
         for stmt in node.body:
@@ -96,6 +96,12 @@ def main():
                 eager.add(fn)
     total = len(lazy) + len(eager)
     print(f'{len(lazy) / total * 100:.1f}% - total: {total}')
+    print('Eager modules:')
+    for fn in sorted(eager):
+        print(f'    {fn}')
+    print('Lazy modules:')
+    for fn in sorted(lazy):
+        print(f'    {fn}')
 
 
 if __name__ == '__main__':
