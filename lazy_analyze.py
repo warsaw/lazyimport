@@ -79,7 +79,7 @@ def analyze(node, fn):
 def main():
     total = lazy = eager = 0
     for fn in sys.argv[1:]:
-        if 'test_' in fn:
+        if fn.startswith('test_'):
             continue
         with open(fn) as fp:
             total += 1
