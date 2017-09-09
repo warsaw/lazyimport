@@ -15,7 +15,7 @@ def set_class(name):
             data = self.__dict__[LAZY_DATA].get(func)
             if data is not None:
                 code = marshal.loads(data)
-                exec(code, self.__dict__)
+                exec(code, vars(self))
                 return self.__dict__[func]
             raise AttributeError()
     sys.modules[name].__class__ = Lazy

@@ -3,6 +3,11 @@ import importlib.util
 import sys
 import tokenize
 
+class OPTIONS:
+    verbose = 0
+    allow_bases = True
+
+
 class Analyzer(ast.NodeVisitor):
 
     # see https://docs.python.org/3/library/ast.html#abstract-grammar
@@ -193,6 +198,12 @@ def analyze(node, fn):
     t = Analyzer(fn)
     t.analyze(node)
     return t
+
+def is_lazy_safe(node):
+    fn = None
+    t = Analyzer(fn)
+    t.analyze(node)
+    return t.safe
 
 
 USAGE = "Usage: %prog [-v] file [...]"

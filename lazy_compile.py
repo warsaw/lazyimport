@@ -42,6 +42,8 @@ import importlib.util
 import py_compile
 from importlib.machinery import FileFinder, SourceFileLoader
 
+import lazy_analyze
+
 PY_EXT = ".py"
 
 class FileLoader(SourceFileLoader):
@@ -56,8 +58,23 @@ class Transformer(ast.NodeTransformer):
     def __init__(self, fn, *args, **kwargs):
         ast.NodeTransformer.__init__(self, *args, **kwargs)
         self.fn = fn
+        self.lazy_defs = set()
+
+    def _is_lazy_assign(self, node):
+        return (len(node.targets) == 1 and
+                isinstance(node.targets[0], ast.Name))
 
     def visit_Module(self, node):
+        for stmt in node.body:
+            stmt_name = stmt.__class__.__name__
+            if stmt_name in {'FunctionDef', 'ClassDef', 'Assign'}:
+                if stmt_name == 'Assign' and not self._is_lazy_assign(stmt):
+                    continue
+                if lazy_analyze.is_lazy_safe(stmt):
+                    self.lazy_defs.add(stmt)
+        if not self.lazy_defs:
+            # nothing to do, skip __class__ and other stuff
+            return self.generic_visit(node)
         # add import of our helper function
         imp = ast.ImportFrom(module='lazy_helper',
                 names=[ast.alias(name='set_class',
@@ -89,16 +106,36 @@ class Transformer(ast.NodeTransformer):
         node.body[idx:idx] = [imp, call, assign]
         return self.generic_visit(node)
 
-    def visit_FunctionDef(self, node):
+    def _compile_stmt(self, node):
         code = compile(ast.Module(body=[node]), self.fn, 'exec')
-        func_code = marshal.dumps(code)
+        return marshal.dumps(code)
+
+    def _store_code(self, code_name, mcode):
+        # store marshal data in the dict
         name = ast.Name(id='__lazy_data', ctx=ast.Load())
-        index = ast.Index(ast.Str(node.name))
+        index = ast.Index(ast.Str(code_name))
         target = ast.Subscript(value=name, slice=index, ctx=ast.Store())
-        assign = ast.Assign(targets=[target], value=ast.Bytes(func_code))
-        ast.copy_location(assign, node)
+        assign = ast.Assign(targets=[target], value=ast.Bytes(mcode))
         ast.fix_missing_locations(assign)
         return assign
+
+    def visit_FunctionDef(self, node):
+        if node not in self.lazy_defs:
+            return self.generic_visit(node) # compile as normal
+        mcode = self._compile_stmt(node)
+        return self._store_code(node.name, mcode)
+
+    def visit_Assign(self, node):
+        if node not in self.lazy_defs:
+            return self.generic_visit(node)
+        else:
+            mcode = self._compile_stmt(node)
+            return self._store_code(node.targets[0].id, mcode)
+
+    def visit_ClassDef(self, node):
+        # FIXME make lazy if safe
+        return self.generic_visit(node)
+
 
 
 def parse(buf, filename='<string>'):
@@ -137,6 +174,8 @@ def do_compile(file, cfile, dfile=None, doraise=False, optimize=-1):
     the resulting file would be regular and thus not the same type of file as
     it was previously.
     """
+    if 'lazy_help' in file:
+        return # skip
     # derived from py_compile.compile
     if os.path.islink(cfile):
         msg = ('{} is a symlink and will be changed into a regular file if '
@@ -433,7 +472,13 @@ def main():
         return False
     return True
 
+def alt_main():
+    # simpler interface, just compile the files in args
+    for fn in sys.argv[1:]:
+        if fn.endswith('.py'):
+            compile_file(fn, force=True)
+
 
 if __name__ == '__main__':
-    exit_status = int(not main())
+    exit_status = int(not alt_main())
     sys.exit(exit_status)
